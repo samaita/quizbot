@@ -24,42 +24,21 @@ class TelegramWebhookController extends Controller
 
             $user = UserTelegram::where('telegram_chat_id', $chat_id)->first();
 
-            switch ($text) {
-                case '/start':
-                    if ($user) {
-                        $response = ResponseHelper::getResponse('welcome_back', ['name' => $user->name]);
-                    } else {
-                        $response = ResponseHelper::getResponse('welcome_not_registered');
-                    }
-                    break;
+            $response = match ($text) {
+                '/start' => $user
+                    ? ResponseHelper::getResponse('welcome_back', ['name' => $user->name])
+                    : ResponseHelper::getResponse('welcome_not_registered'),
 
-                case '/register':
-                    if ($user) {
-                        $response = ResponseHelper::getResponse('already_registered', ['name' => $user->name]);
-                    } else {
-                        // Create a new user
-                        $newUser = new UserTelegram();
-                        $newUser->telegram_chat_id = $chat_id;
-                        $newUser->name = $message->getFrom()->getFirstName();
-                        $newUser->save();
+                '/register' => $this->handleRegistration($user, $chat_id, $message),
 
-                        ResponseHelper::getResponse('success_register', ['name' => $newUser->name]);
-                    }
-                    break;
+                '/status' => $user
+                    ? ResponseHelper::getResponse('status_registered', ['name' => $user->name])
+                    : ResponseHelper::getResponse('status_not_registered'),
 
-                case '/status':
-                    if ($user) {
-                        $response = "You are registered as {$user->name}.";
-                    } else {
-                        $response = "You have not registered yet. Use /register to sign up.";
-                    }
-                    break;
-
-                default:
-                    $response = $user 
-                        ? ResponseHelper::getResponse('echo', ['name' => $user->name, 'text' => $text])
-                        : ResponseHelper::getResponse('please_register');
-            }
+                default => $user
+                    ? ResponseHelper::getResponse('echo', ['name' => $user->name, 'text' => $text])
+                    : ResponseHelper::getResponse('please_register'),
+            };
 
             Telegram::sendMessage([
                 'chat_id' => $chat_id,
@@ -71,5 +50,19 @@ class TelegramWebhookController extends Controller
             Log::error('Error in webhook', ['error' => $e->getMessage()]);
             return response()->json(['status' => 'error', 'message' => $e->getMessage()], 500);
         }
+    }
+
+    private function handleRegistration($user, $chat_id, $message)
+    {
+        if ($user) {
+            return ResponseHelper::getResponse('already_registered', ['name' => $user->name]);
+        }
+
+        $newUser = UserTelegram::create([
+            'telegram_chat_id' => $chat_id,
+            'name' => $message->getFrom()->getFirstName(),
+        ]);
+
+        return ResponseHelper::getResponse('success_register', ['name' => $newUser->name]);
     }
 }
