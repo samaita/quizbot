@@ -2,30 +2,52 @@
 
 namespace App\Helpers;
 
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
+
 class ResponseHelper
 {
-    protected static $responses = [
-        'welcome_back' => "Welcome back, :name! How can I assist you today?",
-        'welcome_not_registered' => "Welcome! You're not registered yet. Please use /register to sign up.",
-        'already_registered' => "You're already registered, :name!",
-        'success_register' => "Thank you for registering, :name! You're now all set.",
- 
-        'echo' => ":name, you said :text",
-        'please_register' => "Please register using /register to get personalized responses."
-    ];
+    private static $responses = [];
+    private static $defaultLanguage = 'en';
 
-    public static function getResponse(string $key, array $params = []): string
+    public static function init()
     {
-        if (!isset(static::$responses[$key])) {
-            return "Response not found for key: {$key}";
+        self::$responses = self::loadResponses();
+    }
+
+    public static function getResponse(string $key, array $params = [], string $language = null): string
+    {
+        $language = $language ?? self::$defaultLanguage;
+
+        if (!isset(self::$responses[$language][$key])) {
+            return "Response not found for key: {$key} in language: {$language}";
         }
 
-        $response = static::$responses[$key];
+        $response = self::$responses[$language][$key];
 
         foreach ($params as $param => $value) {
             $response = str_replace(":{$param}", $value, $response);
         }
 
         return $response;
+    }
+
+    public static function setDefaultLanguage(string $language)
+    {
+        self::$defaultLanguage = $language;
+    }
+
+    private static function loadResponses(): array
+    {
+        return Cache::remember('all_responses', 3600, function () {
+            $responses = DB::table('responses')->get();
+            $groupedResponses = [];
+
+            foreach ($responses as $response) {
+                $groupedResponses[$response->language][$response->key] = $response->content;
+            }
+
+            return $groupedResponses;
+        });
     }
 }
