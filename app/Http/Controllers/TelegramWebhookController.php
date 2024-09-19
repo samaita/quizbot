@@ -6,6 +6,7 @@ use Illuminate\Http\Request;
 use Telegram\Bot\Laravel\Facades\Telegram;
 use Illuminate\Support\Facades\Log;
 use App\Models\UserTelegram;
+use App\Helpers\ResponseHelper;
 
 class TelegramWebhookController extends Controller
 {
@@ -26,15 +27,15 @@ class TelegramWebhookController extends Controller
             switch ($text) {
                 case '/start':
                     if ($user) {
-                        $response = "Welcome back, {$user->name}! How can I assist you today?";
+                        $response = ResponseHelper::getResponse('welcome_back', ['name' => $user->name]);
                     } else {
-                        $response = "Welcome! You're not registered yet. Please use /register to sign up.";
+                        $response = ResponseHelper::getResponse('welcome_not_registered');
                     }
                     break;
 
                 case '/register':
                     if ($user) {
-                        $response = "You're already registered, {$user->name}!";
+                        $response = ResponseHelper::getResponse('already_registered', ['name' => $user->name]);
                     } else {
                         // Create a new user
                         $newUser = new UserTelegram();
@@ -42,7 +43,7 @@ class TelegramWebhookController extends Controller
                         $newUser->name = $message->getFrom()->getFirstName();
                         $newUser->save();
 
-                        $response = "Thank you for registering, {$newUser->name}! You're now all set.";
+                        ResponseHelper::getResponse('success_register', ['name' => $newUser->name]);
                     }
                     break;
 
@@ -56,8 +57,8 @@ class TelegramWebhookController extends Controller
 
                 default:
                     $response = $user 
-                        ? "Hello {$user->name}, you said: $text" 
-                        : "You said: $text. Please register using /register to get personalized responses.";
+                        ? ResponseHelper::getResponse('echo', ['name' => $user->name, 'text' => $text])
+                        : ResponseHelper::getResponse('please_register');
             }
 
             Telegram::sendMessage([
