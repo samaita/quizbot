@@ -13,7 +13,7 @@ class QuizSeeder extends Seeder
     public function run(): void
     {
         // Seed languages
-        $englishId = DB::table('languages')->firstOrCreate([
+        $englishId = DB::table('languages')->insertGetId([
             'code' => 'en',
             'name' => 'English',
             'created_at' => now(),
@@ -21,7 +21,7 @@ class QuizSeeder extends Seeder
         ]);
 
         // Seed question types
-        $multipleChoiceId = DB::table('question_types')->firstOrCreate([
+        $multipleChoiceId = DB::table('question_types')->insertGetId([
             'name' => 'Basic Multiple Choice',
             'created_at' => now(),
             'updated_at' => now(),
